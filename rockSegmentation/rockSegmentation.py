@@ -1,6 +1,6 @@
 # Copyright (c) 2021 郎督 版权所有
 #
-# 文件名：rockSegmentation.py
+# 文件名：dockSegmentation.py
 # 功能描述：根据训练数据训练svc模型，对新数据分类
 #
 # 作者：郎督
@@ -34,15 +34,15 @@ def extracting(img, h, w):
     # 边界扩充，边缘镜像填充
     img = cv2.copyMakeBorder(img, h//2, h//2, w//2, w//2, cv2.BORDER_REFLECT)
 
-    # 特征1：maximum - minimum，区域极大值减去极小值
+    # 特征1：(maximum - minimum)/mean，区域极大值减去极小值/均值
     sub_feature = np.zeros((img_h, img_w), dtype='float32')
     # 特征2：std，区域标准差
     std_feature = np.zeros((img_h, img_w), dtype='float32')
-    # 特征3：abs(pix_value - maximum)，区域极大值减去区域中心点像素值的绝对值
+    # 特征3：abs(pix_value - maximum)/mean，区域极大值减去区域中心点像素值的绝对值/均值
     psm_feature = np.zeros((img_h, img_w), dtype='float32')
-    # 特征4：maximum - mean，区域极大值减去区域均值的绝对值
+    # 特征4：(maximum - mean)/mean，区域极大值减去区域均值的绝对值/均值
     masm_feature = np.zeros((img_h, img_w), dtype='float32')
-    # 特征5：mean - minimum，区域均值减去区域极小值的绝对值
+    # 特征5：(mean - minimum)/mean，区域均值减去区域极小值的绝对值/均值
     msmi_feature = np.zeros((img_h, img_w), dtype='float32')
     for row in range(h//2, img_h + h//2):
         for col in range(w//2, img_w + w//2):
@@ -50,35 +50,48 @@ def extracting(img, h, w):
             # ----特征1-------
             local_max = local_map.max()
             local_min = local_map.min()
-            sub_feature[row - h//2][col - w//2] = local_max - local_min
+            local_mean = local_map.mean()
+            pixel = img[row][col]
+            sub_feature[row - h//2][col - w//2] = (local_max - local_min) / pixel
 
             # ----特征2-------
             std_feature[row - h//2][col - w//2] = np.std(local_map)
 
             # ----特征3-------
-            psm_feature[row - h // 2][col - w // 2] = np.abs(img[row][col] - local_map.mean())
+            psm_feature[row - h // 2][col - w // 2] = np.abs(img[row][col] - local_map.mean()) / pixel
 
             # ----特征4-------
-            masm_feature[row - h // 2][col - w // 2] = np.abs(local_max - local_map.mean())
+            masm_feature[row - h // 2][col - w // 2] = np.abs(local_max - local_map.mean()) / pixel
 
             # ----特征5-------
-            msmi_feature[row - h // 2][col - w // 2] = np.abs(local_min - local_map.mean())
+            msmi_feature[row - h // 2][col - w // 2] = np.abs(local_min - local_map.mean()) / pixel
 
     # 特征图1归一化
     sub_feature = norm(sub_feature)
     # cv2.imshow('sub feature', sub_feature)
+    # sub_feature = cv2.normalize(sub_feature, sub_feature, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    # cv2.imwrite('sub_feature.png', sub_feature)
     # 特征2归一化
     std_feature = norm(std_feature)
     # cv2.imshow('std feature', std_feature)
+    # std_feature = cv2.normalize(std_feature, std_feature, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    # cv2.imwrite('std_feature.png', std_feature)
     # 特征3归一化
     psm_feature = norm(psm_feature)
     # cv2.imshow('psm_feature', psm_feature)
+    # psm_feature = cv2.normalize(psm_feature, psm_feature, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    # cv2.imwrite('psm_feature.png', psm_feature)
     # 特征4归一化
     masm_feature = norm(masm_feature)
     # cv2.imshow('masm_feature', masm_feature)
+    # masm_feature = cv2.normalize(masm_feature, masm_feature, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    # cv2.imwrite('masm_feature.png', masm_feature)
     # 特征5归一化
     msmi_feature = norm(msmi_feature)
     # cv2.imshow('msmi_feature', msmi_feature)
+    # msmi_feature = cv2.normalize(msmi_feature, msmi_feature, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    # cv2.imwrite('msmi_feature.png', msmi_feature)
+    # print(msmi_feature.dtype)
     # 特征整合
     feature = np.stack([sub_feature, std_feature, psm_feature, masm_feature, msmi_feature], axis=-1)
     return feature
@@ -136,7 +149,12 @@ def main():
 
     # svm训练
     print('svm训练中，训练数据维度：', feature.shape, '请等待---------------')
-    clf = svm.SVC(C=1.5, max_iter=300)
+    clf = svm.SVC(
+        C=1,
+        kernel='sigmoid',   # rbf, poly, sigmoid, linear, precomputed
+        degree=3,
+        max_iter=300
+    )
     clf.fit(feature, label)
 
     # --------------------------svm预测-----------------------------------
@@ -164,6 +182,7 @@ def main():
 
     display_img = test_gray_img + (test_label * 0.5).astype('uint8')    # 岩石区域添加颜色
     cv2.imshow('display_img', display_img)
+    # cv2.imwrite('display_img.png', display_img)
 
     cv2.waitKey(0)
 
