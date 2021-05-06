@@ -1,6 +1,6 @@
 # Copyright (c) 2021 郎督 版权所有
 #
-# 文件名：dockSegmentation.py
+# 文件名：rockSegmentation.py
 # 功能描述：根据训练数据训练svc模型，对新数据分类
 #
 # 作者：郎督
