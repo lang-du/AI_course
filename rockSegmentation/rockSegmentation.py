@@ -1,6 +1,6 @@
 # Copyright (c) 2021 郎督 版权所有
 #
-# 文件名：dockSegmentation.py
+# 文件名：rockSegmentation.py
 # 功能描述：根据训练数据训练svc模型，对新数据分类
 #
 # 作者：郎督
@@ -13,7 +13,25 @@ import numpy as np
 from sklearn import svm
 
 
+def filter_area(image, area_threshold=200):
+    """
+    过滤image前景中面积小于area_threshold的部分
+    :param image: 二值图，uint8
+    :param area_threshold: 面积阈值，小于该值的面积被过滤
+    :return: mask
+    """
+    assert len(image.shape)==2, "filter_area函数只能过滤二值图"
+    assert isinstance(area_threshold, int), "area_threshold 必须为整数"
+    mask = np.zeros(image.shape, dtype='uint8')
+    retval, labels, stats, centroids = cv2.connectedComponentsWithStats(image)
+    for i in range(1, labels.max() + 1):
+        if stats[i, -1] > area_threshold:
+            mask[labels == i] = 255
+    return mask
+
+
 def norm(matrix):
+    """矩阵归一化"""
     assert len(matrix.shape) == 2, '必须为2维矩阵'
     max = matrix.max()
     min = matrix.min()
@@ -127,19 +145,40 @@ def get_data_and_label(data_path_list, label_path_list):
     # cv2.imshow('label', label.astype('float'))
     return data, label
 
+
+def display_mask_on_gray_img(gray_img, mask, color='blue'):
+    """
+    根据mask，在img对于区域显示颜色
+    :param color_weight: 显示颜色的比重
+    :param gray_img: 灰度图
+    :param mask: 值只有0和255的图
+    :param color: 颜色bgr
+    :return: bgr3通道图
+    """
+    assert gray_img.shape == mask.shape, '图片和掩膜维度必须相同'
+    if color=='blue':
+        c = 0
+    elif color == 'green':
+        c = 1
+    else:
+        c = 2
+    img_bgr = np.stack([gray_img, gray_img, gray_img], axis=-1)
+    img_bgr[mask>0, c] = 255
+    return img_bgr
+
 def main():
     # 使用图1和图3训练，图二预测
     img_path_list = ['images/1.bmp', 'images/3.bmp']
     label_path_list = ['images/1.png', 'images/3.png']
-    pred_img_path_list = ['images/2.bmp']
-    pred_label_path_list = ['images/2.png']
+    pred_img_path_list = ['images/2.bmp']   # 图1、2、3是题目给的图，4、5是另找的图
+    pred_label_path_list = pred_img_path_list     # 预测图片，没有标签
 
     # -----------------------------训练阶段--------------------------
     # 读取训练数据
     data, label = get_data_and_label(img_path_list, label_path_list)
     # cv2.imshow('data', data)        # 显示中，灰度图模式
 
-    # 提取特征
+    # ###########第一问：提取特征##################
     h = 19  # 窗口高度
     w = 19  # 窗口宽度
     feature = extracting(data, h, w)
@@ -148,7 +187,7 @@ def main():
     feature = np.reshape(feature, (-1, feature.shape[-1]))
     label = np.reshape(label, (feature.shape[0]))
 
-    # svm训练
+    # #############第二问：svm分类#################
     print('svm训练中，训练数据维度：', feature.shape, '请等待---------------')
     clf = svm.SVC(
         C=1,
@@ -172,18 +211,25 @@ def main():
     # 恢复维度
     pred_label = np.reshape(pred_label, (test_label.shape))
 
-    # 查看结果
+    # 查看分割结果
     pred_label = pred_label.astype('uint8')
 
     pred_label[pred_label == 1] = 255   # mask
-    test_data[pred_label > 0] = (test_data[pred_label > 0] * 0.5).astype('uint8')    # 岩石区域颜色衰减，以便后续添加颜色标志
-    test_gray_img = np.stack([test_data, test_data, test_data], axis=-1)    # 灰度图转rgb图，以便显示颜色
-    test_label = np.zeros(test_gray_img.shape, dtype='uint8')   # 显示图
-    test_label[..., 0] = pred_label     # 用蓝色标记出岩石区域
-
-    display_img = test_gray_img + (test_label * 0.5).astype('uint8')    # 岩石区域添加颜色
-    cv2.imshow('display_img', display_img)
+    display_img = display_mask_on_gray_img(test_data, pred_label)
+    cv2.imshow('segmented img', display_img)
     # cv2.imwrite('display_img.png', display_img)
+
+    # --------------------第三问：大岩石表面误判----------------------
+    # 计算检测的平坦区域面积，过滤面积较小区域
+    flat_area = 255 - pred_label       # 过滤小的平坦区域，将前景背景置换，平坦区域为前景
+    flat_area = filter_area(flat_area, area_threshold=400)  # 过滤小面积平坦区域
+    rock_area = 255 - flat_area         # 前景背景置换，平坦区域为背景
+    filter_img = display_mask_on_gray_img(test_data, rock_area, color='blue')
+    cv2.imshow('filted img', filter_img)
+    # cv2.imwrite('filter_new_img.png', filter_img)
+
+    # ----------第四问：不同地形-----------
+    # 更换预测的图片路径，即pred_img_path_list，可以更换为图4或者图5
 
     cv2.waitKey(0)
 
