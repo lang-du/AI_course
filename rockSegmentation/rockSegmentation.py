@@ -38,7 +38,7 @@ def extracting(img, h, w):
     sub_feature = np.zeros((img_h, img_w), dtype='float32')
     # 特征2：std，区域标准差
     std_feature = np.zeros((img_h, img_w), dtype='float32')
-    # 特征3：abs(pix_value - maximum)/mean，区域极大值减去区域中心点像素值的绝对值/均值
+    # 特征3：abs(pix_value - mean)/mean，区域平均值减去区域中心点像素值的绝对值/均值
     psm_feature = np.zeros((img_h, img_w), dtype='float32')
     # 特征4：(maximum - mean)/mean，区域极大值减去区域均值的绝对值/均值
     masm_feature = np.zeros((img_h, img_w), dtype='float32')
@@ -47,24 +47,25 @@ def extracting(img, h, w):
     for row in range(h//2, img_h + h//2):
         for col in range(w//2, img_w + w//2):
             local_map = img[row - h//2:row + h//2 + 1, col - w//2:col + w//2 + 1]
+
+            local_max = local_map.max() # 区域极大值
+            local_min = local_map.min() # 区域极小值
+            local_mean = local_map.mean()   # 区域均值
+            pixel = img[row][col]       # 区域中心像素值
             # ----特征1-------
-            local_max = local_map.max()
-            local_min = local_map.min()
-            local_mean = local_map.mean()
-            pixel = img[row][col]
-            sub_feature[row - h//2][col - w//2] = (local_max - local_min) / pixel
+            sub_feature[row - h//2][col - w//2] = (local_max - local_min) / local_mean
 
             # ----特征2-------
             std_feature[row - h//2][col - w//2] = np.std(local_map)
 
             # ----特征3-------
-            psm_feature[row - h // 2][col - w // 2] = np.abs(img[row][col] - local_map.mean()) / pixel
+            psm_feature[row - h // 2][col - w // 2] = np.abs(pixel - local_mean) / local_mean
 
             # ----特征4-------
-            masm_feature[row - h // 2][col - w // 2] = np.abs(local_max - local_map.mean()) / pixel
+            masm_feature[row - h // 2][col - w // 2] = np.abs(local_max - local_mean) / local_mean
 
             # ----特征5-------
-            msmi_feature[row - h // 2][col - w // 2] = np.abs(local_min - local_map.mean()) / pixel
+            msmi_feature[row - h // 2][col - w // 2] = np.abs(local_min - local_mean) / local_mean
 
     # 特征图1归一化
     sub_feature = norm(sub_feature)
