@@ -6,10 +6,11 @@
 # 作者：郎督
 # 时间：2021年6月3日
 #
-# 版本：V1.0.0
+# 版本：V1.0.1
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 
 def split_data(data, val_split: float):
@@ -30,6 +31,7 @@ def read_csv_data(file_paths: list):
     """
     读取数据，数据为每一行减去上一行的数据
     :param :file_paths  文件路径 list
+    :return: data
     """
     alldata = []
     for path in file_paths:
@@ -48,7 +50,7 @@ def read_csv_data(file_paths: list):
     return alldata
 
 
-def learning(Einit, train_data, train_label, val_data, val_label, epoches=100, lr=0.001):
+def learning(Einit, train_data, train_label, val_data, val_label, epoches=100, lr=0.01, shuffle=True, print_epoch=50):
     """
     学习，随机梯度下降法
     Einit:初始化的功效矩阵系数
@@ -58,12 +60,18 @@ def learning(Einit, train_data, train_label, val_data, val_label, epoches=100, l
     val_label:validation label
     epoches:次数
     lr:学习率
+    shuffle: shuffle bool
     :return: E -np.ndarray   loss_list:list
     """
     E = Einit
     train_length = train_data.shape[0]
     loss_list = []
     for epoch in range(epoches):
+        if shuffle:
+            cc = list(zip(train_data, train_label))
+            random.shuffle(cc)
+            train_data[:], train_label[:] = zip(*cc)
+
         for i in range(train_length):
             # 计算预测值 34x1
             f_pred = E @ train_data[i].T
@@ -76,7 +84,8 @@ def learning(Einit, train_data, train_label, val_data, val_label, epoches=100, l
         pred = predict(val_data, E)
         loss = mse_loss(pred, val_label)
         loss_list.append(loss)
-        print('Epoch:', epoch+1, " val_loss:", loss)
+        if epoch % print_epoch == 0:
+            print('Epoch:', epoch+1, " val_loss:", loss)
     return E, loss_list
 
 
@@ -96,7 +105,9 @@ def mse_loss(pred, label):
     label:标签
     return:平均损失
     """
-    return np.sum(np.power((pred - label).mean(axis=0), 2))
+    error = np.mean(np.power((pred - label), 2), 0)
+    # print(error)
+    return np.sum(error)
 
 
 def normalize_data(data):
@@ -113,16 +124,45 @@ def normalize_data(data):
 
 def main():
     files = ['848543.csv', '848794.csv', '848916.csv', '849094.csv', '849205.csv']
-    # files = ['848543.csv', '848916.csv']
+    # files = ['848543.csv']
     data = read_csv_data(files)
-    data = normalize_data(data)
+    data = normalize_data(data) # 标准化
     train_data, train_label, val_data, val_label = split_data(data, 0.2)
+    print('训练集数据条目：', train_data.shape[0], '测试集数据条目：', val_data.shape[0])
 
-    # 用第一行训练数据获得初始功效矩阵
-    Einit = np.outer(train_label[0], train_data[0])
-    E, val_loss = learning(Einit, train_data[1:], train_label[1:], val_data, val_label)
+    # 梯度下降测试数据
+    w = np.array([[1], [0.5]], dtype='float')
+    train_data = np.linspace(0, 1, 1000).reshape(1000, 1)
+    train_data = np.hstack([train_data, np.ones((1000, 1))])
+    train_label = train_data @ w
+    val_data = np.linspace(1, 2, 10).reshape(10, 1)
+    val_data = np.hstack([val_data, np.ones((10, 1))])
+    val_label = val_data @ w
 
+    # 用第一行训练数据获得初始功效矩阵, 效果很差，难以收敛
+    # epsilon = 0 # 防止除数出现0
+    # Einit = np.outer(train_label[0], 1/(train_data[0] + epsilon))
+    # Einit = Einit / Einit.max()
+
+    # 随机初始化
+    Einit = np.random.rand(train_label.shape[1], train_data.shape[1])
+
+    print('E init shape:', Einit.shape)
+
+
+    E, val_loss = learning(
+        Einit,
+        train_data[1:],
+        train_label[1:],
+        val_data,
+        val_label,
+        epoches=100,
+        lr=0.001,
+        shuffle=True)
+    print(E)
     plt.plot(val_loss)
+    plt.xlabel('epoch')
+    plt.ylabel('MSE loss')
     plt.show()
 
 
