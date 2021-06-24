@@ -11,6 +11,7 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from sklearn.linear_model import LinearRegression
 
 
 def split_data(data, val_split: float):
@@ -64,6 +65,10 @@ def learning(Einit, train_data, train_label, val_data, val_label, epoches=100, l
     :return: E -np.ndarray   loss_list:list
     """
     E = Einit
+    pred = predict(val_data, E)
+    loss = mse_loss(pred, val_label)
+    print( " val_loss:", loss)
+
     train_length = train_data.shape[0]
     loss_list = []
     for epoch in range(epoches):
@@ -106,6 +111,7 @@ def mse_loss(pred, label):
     return:平均损失
     """
     error = np.mean(np.power((pred - label), 2), 0)
+    # print(error)
     return np.sum(error)
 
 
@@ -118,7 +124,6 @@ def normalize_data(data):
     mean_data = data.mean(axis=0)
     std_data = data.std(axis=0)
     data = (data - mean_data) / std_data
-    # data = 2 * (data - mean_data) / (data.max(axis=0) - data.min(axis=0))
     return data
 
 
@@ -128,40 +133,21 @@ def main():
     data = read_csv_data(files)
     data = normalize_data(data) # 标准化
     train_data, train_label, val_data, val_label = split_data(data, 0.2)
-    # print(train_data.max(axis=0))
     print('训练集数据条目：', train_data.shape[0], '测试集数据条目：', val_data.shape[0])
 
-    # 梯度下降测试数据
-    # w = np.array([[1], [0.5]], dtype='float')
-    # train_data = np.linspace(0, 1, 1000).reshape(1000, 1)
-    # train_data = np.hstack([train_data, np.ones((1000, 1))])
-    # train_label = train_data @ w
-    # val_data = np.linspace(1, 2, 10).reshape(10, 1)
-    # val_data = np.hstack([val_data, np.ones((10, 1))])
-    # val_label = val_data @ w
-
-    # 用第一行训练数据获得初始功效矩阵, 效果很差，难以收敛
-    epsilon = 0.1 # 防止除数出现0
-    Einit = np.outer(train_label[0], 1 / (train_data[0] + epsilon))
-    # Einit = Einit / Einit.max()
+    reg = LinearRegression().fit(train_data, train_label)
+    E = reg.coef_
+    print(type(E), E.dtype, E.shape)
 
 
-    # 随机初始化
-    # Einit = np.random.rand(train_label.shape[1], train_data.shape[1])
 
-    print('E init shape:', Einit.shape)
+    pred = reg.predict(val_data)
+    print(pred[0, 0:5])
+    print(val_label[0, 0:5])
+    loss = mse_loss(pred, val_label)
+    print(loss)
 
-    E, val_loss = learning(
-        Einit,
-        train_data[1:],
-        train_label[1:],
-        val_data,
-        val_label,
-        epoches=200,
-        lr=0.001,
-        shuffle=False)
-    print(E)
-    plt.plot(val_loss)
+    plt.plot(loss)
     plt.xlabel('epoch')
     plt.ylabel('MSE loss')
     plt.show()
