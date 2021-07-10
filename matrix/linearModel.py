@@ -8,7 +8,7 @@
 #
 # 版本：V1.0.0
 
-from dataloader import CsvDataloader
+from dataloader import MatrixDataLoader
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
@@ -40,9 +40,9 @@ def main():
     files = ['848543.csv', '848794.csv', '849094.csv', '849205.csv', '848916.csv',]
     y_cols = [i for i in range(36, 70)]
     x_cols = [4, 9, 10]
-    dataloader = CsvDataloader(files, x_cols, y_cols, x_threshold=[-20, 20], y_threshold=[-20, 20])
-    x, y = dataloader()
-    print(x.max(), x.min(), y.max(), y.min())
+    x_limits = [[-20, 20], [-5, 5], [-3, 3]]
+    dataloader = MatrixDataLoader(files, x_cols, y_cols)
+    x, y = dataloader(limit=x_limits)
 
     # 归一化
     scaler = MinMaxScaler((-1, 1))
