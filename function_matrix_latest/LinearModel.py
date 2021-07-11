@@ -4,7 +4,7 @@
 # 功能描述：线性模型求解功效矩阵
 #
 # 作者：Dudu
-# 时间：2021年6月24日
+# 时间：2021年7月11日
 #
 # 版本：V1.0.0
 
@@ -13,13 +13,14 @@ from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.neural_network import MLPRegressor
 
 
-def plot_functional_coef(coef, legend_list=None, marker_list=None):
+def plot_functional_coef(coef, legend_list=None, marker_list=None, title='matrix'):
     """
     绘制功效矩阵图像
-    :param coef:
-    :return:
+    :param coef: matrix
+    :return:None
     """
     plt.rcParams['font.sans-serif'] = ['SimHei']
     plt.rcParams['axes.unicode_minus'] = False
@@ -33,6 +34,7 @@ def plot_functional_coef(coef, legend_list=None, marker_list=None):
         p,  = plt.plot(x_range, coef[:, i], marker=marker_list[i], label=legend_list[i])
         plt_handles.append(p)
     plt.legend(handles=plt_handles)
+    plt.title(title)
     plt.show()
 
 
@@ -57,7 +59,7 @@ def main():
     coef = reg.coef_
     print('线性回归功效矩阵：', coef)
     # plot functional coef
-    plot_functional_coef(coef, ['轧制力', '弯辊力', '中间辊弯辊力'], ['o', '*', '>'])
+    plot_functional_coef(coef, ['轧制力', '弯辊力', '中间辊弯辊力'], ['o', '*', '>'], title='linear regression')
 
     # # 脊回归
     reg = Ridge(.5)
@@ -65,7 +67,32 @@ def main():
 
     coef = reg.coef_
     print('脊回归功效矩阵：', coef)
-    plot_functional_coef(coef, ['轧制力', '弯辊力', '中间辊弯辊力'], ['o', '*', '>'])
+    plot_functional_coef(coef, ['轧制力', '弯辊力', '中间辊弯辊力'], ['o', '*', '>'], title='ridge regression')
+
+    # ann
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    regr = MLPRegressor(
+        hidden_layer_sizes=(64, ),
+        activation='identity',
+        max_iter=100,
+        n_iter_no_change=100,
+    )
+    regr.fit(X_train, y_train)
+    R = regr.score(X_test, y_test)  # coefficient of determination
+    coef_list = regr.coefs_
+    coef = (coef_list[0] @ coef_list[1]).T      # matrix
+    print('ANN matrix:', coef)
+    print('the coefficient of determination:', R)
+
+    loss = regr.loss_curve_ # training loss
+    plt.title('ANN loss')
+    plt.plot(loss)
+    plt.show()
+
+    plot_functional_coef(coef, ['轧制力', '弯辊力', '中间辊弯辊力'], ['o', '*', '>'], title='ANN regression')
+
+
 
 
 if __name__ == '__main__':

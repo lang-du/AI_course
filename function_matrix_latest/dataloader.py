@@ -1,3 +1,13 @@
+# Copyright (c) 2021 Dudu 版权所有
+#
+# 文件名：dataloader.py
+# 功能描述：线性模型求解功效矩阵
+#
+# 作者：Dudu
+# 时间：7月11日
+#
+# 版本：V1.0.0
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,8 +23,6 @@ class MatrixDataLoader:
         self.csv_list = csv_list
         self.alldata = self.read_data(csv_list)
 
-        self.analyse_data(self.alldata)
-
         self.x_cols = x_cols
         self.y_cols = y_cols
 
@@ -25,14 +33,18 @@ class MatrixDataLoader:
         :return: pandas.DataFrame
         """
         data = []
+        data_null_check = []
         for csv_path in csv_list:
             d = pd.read_csv(csv_path)
+            data_null_check.append(d)
             d_ = d.shift(1)
             d = d.iloc[:, :] - d_.iloc[:, :]
             d = d.iloc[1:, :]
             data.append(d)
         d = pd.concat(data)
-        print('文件数据读取成功，数据维度：', d.shape)
+        data_null_check = pd.concat(data_null_check)
+        self.analyse_data(data_null_check)
+        print('文件数据读取成功，CSV数据维度：', data_null_check.shape, '训练数据：', d.shape)
         print(d.head(5))
         return d
 
@@ -80,6 +92,14 @@ if __name__ == '__main__':
     x_cols = [4, 9, 10]
     dataloader = MatrixDataLoader(files, x_cols, y_cols)
 
+    # 绘制x直方图，源数据
+    x, y = dataloader()
+    for i in range(len(x_cols)):
+        d = x[:, i]
+        print('数据最大最小值为：', d.max(), d.min())
+        plt.hist(d, bins = 100)
+        plt.show()
+
     # 绘制x直方图，限制后的数据
     x_limits = [[-20, 20], [-5, 5], [-3, 3]]
     x, y = dataloader(limit=x_limits)
@@ -87,15 +107,7 @@ if __name__ == '__main__':
     for i in range(len(x_cols)):
         d = x[:, i]
         print('数据最大最小值为：', d.max(), d.min())
-        plt.hist(d, bins = 50)
-        plt.show()
-
-    # 绘制x直方图，源数据
-    x, y = dataloader()
-    for i in range(len(x_cols)):
-        d = x[:, i]
-        print('数据最大最小值为：', d.max(), d.min())
-        plt.hist(d, bins = 100)
+        plt.hist(d, bins=50)
         plt.show()
 
 
